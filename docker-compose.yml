@@ -1,26 +1,44 @@
 version: '3'
 services:
-  redis:
-    image: "redis:alpine"
-    container_name: redis-container
-    ports:
-        - "${REDIS_PORT}"
-  client:
-    build: client
+  db:
+    image: postgres
+    container_name: db
     env_file:
       - ./.env
-    links:
-      - server
     ports:
-      - "127.0.0.1:5000:${CLIENT_PORT}"
-  server:
-    build: server
-    container_name: server
-    env_file:
-      - ./.env
+      - "${DATABASE_POSTGRES_INTERNAL_PORT}:${DATABASE_POSTGRES_EXTERNAL_PORT}"
     environment:
-      - REDIS_URL=redis://redis-container
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_USER=${DATABASE_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DATABASE_POSTGRES_PASSWORD}
+  pgadmin:
+    image: fenglc/pgadmin4
+    container_name: pgadmin
+    env_file:
+      - ./.env
     links:
-      - redis
+      - db
     ports:
-      - "127.0.0.1:5001:${SERVER_PORT}"
+      - "${PGADMIN_PORT}:${PGADMIN_PORT}"
+    environment:
+      - DEFAULT_USER=${DEFAULT_PGADMIN_USER}
+      - DEFAULT_PASSWORD=${DEFAULT_PGADMIN_PASSWORD}
+  api:
+    #build: .
+    image: node:latest
+    container_name: api
+    env_file:
+      - ./.env
+    volumes:
+      - ./server:/usr/api
+    working_dir: /usr/api
+    links:
+      - db
+    environment:
+      - DATABASE_URL=${DATABASE_POSTGRES_URL}
+    command: "npm run start-server"
+    #command: "npm run start"
+    ports:
+      - "${BROWSERSYNC_PORT}:${BROWSERSYNC_PORT}"
+      - "${DEBUG_PORT}:${DEBUG_PORT}"
+      - "${PORT}:${PORT}"
